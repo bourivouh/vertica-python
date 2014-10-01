@@ -2,6 +2,9 @@ from __future__ import absolute_import
 
 import collections
 import os
+import re
+from datetime import datetime, date, time
+from decimal import Decimal
 
 import vertica_python.errors as errors
 
@@ -38,23 +41,43 @@ class Cursor(object):
     def close(self):
         self._closed = True
 
+    def quote(self, value):
+        """ Properly quotes a value for safe usage in SQL queries.
+
+        This method has quoting rules for common types. Any other object will be converted to
+        a string using unicode() and then quoted as a string.
+        """
+        if value is None:
+            return 'NULL'
+        elif value is False:
+            return 'FALSE'
+        elif value is True:
+            return 'TRUE'
+        elif isinstance(value, datetime) or isinstance(value, time):
+            return value.strftime("'%Y-%m-%d %H:%M:%S'::timestamp")
+        elif isinstance(value, date):
+            return value.strftime("'%Y-%m-%d'::date")
+        elif isinstance(value, basestring):
+            if not isinstance(value, unicode):
+                value = value.decode("utf-8")
+            return u"'{0}'".format(re.sub(r"'", "''", value))
+        elif isinstance(value, Decimal) or isinstance(value, int) or isinstance(value, long) or isinstance(value, float):
+            return str(value)
+        elif isinstance(value, list):
+            return map(lambda x: quote(x), value)
+        else:
+            return self.quote(unicode(value))
+
     def execute(self, operation, parameters=None):
 
         if self.closed():
             raise errors.Error('Cursor is closed')
 
         if parameters:
-            # optional requirement
-            from psycopg2.extensions import adapt
-
-            if isinstance(parameters, dict):
-                for key in parameters:
-                    v = adapt(parameters[key]).getquoted()
-                    operation = operation.replace(':' + key, v)
-            elif isinstance(parameters, tuple):
-                operation = operation % tuple(adapt(p).getquoted() for p in parameters)
+            if isinstance(parameters, tuple):
+                operation = operation % tuple(self.quote(p) for p in parameters)
             else:
-                raise errors.Error("Argument 'parameters' must be dict or tuple")
+                raise errors.Error("Argument 'parameters' must be tuple")
 
         self.rowcount = 0
         self.buffered_rows = collections.deque()

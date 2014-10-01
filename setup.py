@@ -18,7 +18,6 @@ setup(
     packages=find_packages(),
     license="MIT",
     install_requires=['python-dateutil>=1.5', 'pytz'],
-    extras_require={'namedparams': ['psycopg2>=2.5.1']},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
