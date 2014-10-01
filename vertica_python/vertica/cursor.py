@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import collections
+import os
 
 import vertica_python.errors as errors
 
@@ -26,12 +27,6 @@ class Cursor(object):
         self.description = None
         self.rowcount = -1
         self.arraysize = 1
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
 
     #
     # dbApi methods
@@ -109,16 +104,15 @@ class Cursor(object):
     def setoutputsize(self,size, column=None):
         pass
 
-
     #
     # Non dbApi methods
     #
     # todo: input stream
     def copy(self, sql, data):
-
         if self.closed():
             raise errors.Error('Cursor is closed')
 
+        self.last_execution = sql
         self.connection.write(messages.Query(sql))
 
         while True:
@@ -127,8 +121,10 @@ class Cursor(object):
             if isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CopyInResponse):
-                #write stuff
-                self.connection.write(messages.CopyData(data))
+                if os.path.isfile(data):
+                    self.file_copy_handler(data)
+                else:
+                    self.connection.write(messages.CopyData(data))
                 self.connection.write(messages.CopyDone())
 
         if self.error is not None:
@@ -213,17 +209,16 @@ class Cursor(object):
             row.append(col.convert(value))
         return row
 
+    COPY_FROM_IO_BLOCK_SIZE = 1024 * 4096
 
-    #COPY_FROM_IO_BLOCK_SIZE = 1024 * 4096
-
-    #def file_copy_handler(self, input_file, output):
-    #    with open(input_file, 'r') as f:
-    #        while True:
-    #            data = f.read(self.COPY_FROM_IO_BLOCK_SIZE)
-    #            if len(data) > 0:
-    #                output.write(data)
-    #            else:
-    #                break
+    def file_copy_handler(self, input_file):
+       with open(input_file, 'r') as f:
+           while True:
+               data = f.read(self.COPY_FROM_IO_BLOCK_SIZE)
+               if len(data) > 0:
+                   self.connection.write(messages.CopyData(data))
+               else:
+                   break
 
     #def io_copy_handler(self, input, output):
     #    while True:
@@ -232,5 +227,3 @@ class Cursor(object):
     #            output.write(data)
     #        else:
     #            break
-
-
