@@ -70,7 +70,7 @@ class Cursor(object):
         elif isinstance(value, Decimal) or isinstance(value, int) or isinstance(value, long) or isinstance(value, float):
             return str(value)
         elif isinstance(value, list):
-            return map(lambda x: quote(x), value)
+            return map(lambda x: self.quote(x), value)
         else:
             return self.quote(unicode(value))
 
