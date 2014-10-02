@@ -59,7 +59,7 @@ class Cursor(object):
             return 'FALSE'
         elif value is True:
             return 'TRUE'
-        elif isinstance(value, datetime) or isinstance(value, time):
+        elif isinstance(value, (datetime, time)):
             return value.strftime("'%Y-%m-%d %H:%M:%S'::timestamp")
         elif isinstance(value, date):
             return value.strftime("'%Y-%m-%d'::date")
@@ -67,7 +67,7 @@ class Cursor(object):
             if not isinstance(value, unicode):
                 value = value.decode("utf-8")
             return u"'{0}'".format(re.sub(r"'", "''", value))
-        elif isinstance(value, Decimal) or isinstance(value, int) or isinstance(value, long) or isinstance(value, float):
+        elif isinstance(value, (Decimal, int, long, float)):
             return str(value)
         elif isinstance(value, list):
             return map(lambda x: self.quote(x), value)
